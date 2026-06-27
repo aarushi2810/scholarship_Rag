@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: scholarship-rag-backend
+    env: docker
+    dockerfilePath: backend/Dockerfile
+    plan: free
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: QDRANT_HOST
+        sync: false # User will provide Qdrant Cloud host
+      - key: QDRANT_PORT
+        value: 6333
+      - key: QDRANT_COLLECTION
+        value: scholarships
+      - key: REDIS_URL
+        sync: false # User will provide Redis instance URL
+      - key: POSTGRES_URL
+        sync: false # User will provide Neon Postgres database URL
+      - key: GEMINI_API_KEY
+        sync: false # User will provide their Gemini API key
+      - key: JWT_SECRET
+        generateValue: true # Render will automatically generate a secure random value
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRE_MINUTES
+        value: 525600
+      - key: EMBEDDING_MODEL
+        value: BAAI/bge-small-en-v1.5
+      - key: EMBEDDING_DIM
+        value: 384

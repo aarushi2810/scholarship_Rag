@@ -1,0 +1,99 @@
+[
+  {
+    "description": "Female engineering student searching for technical or girl-child scholarships",
+    "query": "scholarships for female engineering students",
+    "filters": {
+      "education_level": "Engineering"
+    },
+    "expected_scheme_ids": [
+      "aicte_pragati",
+      "loreal_women_science",
+      "kotak_kanya",
+      "rj_devnarayan_scooty"
+    ]
+  },
+  {
+    "description": "SC category student looking for state or central post matric schemes",
+    "query": "post matric SC scholarship schemes",
+    "filters": {
+      "category": "SC"
+    },
+    "expected_scheme_ids": [
+      "punjab_post_matric_sc",
+      "hry_post_matric_sc",
+      "up_post_matric_sc",
+      "ka_post_matric_sc",
+      "delhi_post_matric_sc",
+      "rj_post_matric_sc_st",
+      "mah_rajarshi_shahu_sc_st"
+    ]
+  },
+  {
+    "description": "OBC category student looking for backward class allowances",
+    "query": "scholarships for backward class students",
+    "filters": {
+      "category": "OBC"
+    },
+    "expected_scheme_ids": [
+      "hry_post_matric_obc",
+      "ka_post_matric_obc",
+      "punjab_post_matric_obc",
+      "rj_post_matric_obc",
+      "mah_post_matric_obc",
+      "nsp_fellowship_obc"
+    ]
+  },
+  {
+    "description": "Undergraduate student seeking college funding",
+    "query": "undergraduate college scholarships",
+    "filters": {
+      "education_level": "UG"
+    },
+    "expected_scheme_ids": [
+      "ugc_ishan_uday",
+      "central_sector_college",
+      "nsp_merit_punjab",
+      "lic_golden_jubilee",
+      "reliance_foundation",
+      "tata_trusts_ug",
+      "rj_cm_sarvajan",
+      "delhi_merit_means"
+    ]
+  },
+  {
+    "description": "Postgraduate student seeking fellowship or master's support",
+    "query": "postgraduate degree funding and fellowships",
+    "filters": {
+      "education_level": "PG"
+    },
+    "expected_scheme_ids": [
+      "wb_kanyashree_k3",
+      "ugc_single_girl_child",
+      "ugc_pg_gate",
+      "aditya_birla_scholarship",
+      "ugc_indira_gandhi_single_girl"
+    ]
+  },
+  {
+    "description": "Low-income student seeking aid under strict income ceilings",
+    "query": "scholarships under income ceiling 2.5 lakh",
+    "filters": {},
+    "expected_scheme_ids": [
+      "punjab_post_matric_sc",
+      "central_sector_college",
+      "hry_post_matric_sc",
+      "up_post_matric_general",
+      "up_post_matric_sc",
+      "ka_post_matric_obc",
+      "ka_post_matric_sc",
+      "wb_swarna_jayanti",
+      "lic_golden_jubilee",
+      "rj_post_matric_sc_st",
+      "rj_post_matric_obc",
+      "hry_post_matric_st",
+      "mah_rajarshi_shahu_sc_st",
+      "pb_post_matric_st",
+      "nsp_nmmss"
+    ]
+  }
+]
