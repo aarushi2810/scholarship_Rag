@@ -5,12 +5,10 @@ services:
     dockerfilePath: backend/Dockerfile
     plan: free
     envVars:
-      - key: PORT
-        value: 8000
-      - key: QDRANT_HOST
-        sync: false # User will provide Qdrant Cloud host
-      - key: QDRANT_PORT
-        value: 6333
+      - key:  QDRANT_URL
+        sync: false
+      - key:  QDRANT_API_KEY
+        sync: false
       - key: QDRANT_COLLECTION
         value: scholarships
       - key: REDIS_URL
