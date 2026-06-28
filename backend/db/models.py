@@ -1,5 +1,5 @@
 """
-SQLAlchemy 2.0 ORM models for ScholarshipRAG.
+SQLAlchemy 2.0 ORM models for ScholarMatch AI.
 
 Tables:
   - users: registered users with profile fields for eligibility matching

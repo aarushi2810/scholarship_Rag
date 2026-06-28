@@ -1,5 +1,5 @@
 """
-Async PostgreSQL engine and session factory for ScholarshipRAG.
+Async PostgreSQL engine and session factory for ScholarMatch AI.
 """
 
 from typing import AsyncGenerator

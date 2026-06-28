@@ -4,8 +4,8 @@ import { AIAdvisor } from "./components/AIAdvisor";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ScholarshipRAG",
-  description: "AI-powered scholarship discovery and recommendation platform",
+  title: "ScholarMatch AI",
+  description: "AI-powered scholarship discovery and recommendations.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -15,8 +15,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="shell">
           <header className="topbar">
             <Link className="brand" href="/dashboard">
-              <span className="brand-mark">SR</span>
-              <span>ScholarshipRAG</span>
+              <span className="brand-mark">SM</span>
+              <span>ScholarMatch AI</span>
             </Link>
             <nav className="nav" aria-label="Primary navigation">
               <Link href="/dashboard">Dashboard</Link>

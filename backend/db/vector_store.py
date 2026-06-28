@@ -1,5 +1,5 @@
 """
-Qdrant hybrid (dense + sparse) vector store for ScholarshipRAG.
+Qdrant hybrid (dense + sparse) vector store for ScholarMatch AI.
 
 Uses:
   - Dense embeddings via sentence-transformers (BAAI/bge-small-en-v1.5, dim=384)

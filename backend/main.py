@@ -1,4 +1,4 @@
-"""FastAPI app for ScholarshipRAG."""
+"""FastAPI app for ScholarMatch AI."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from backend.routes.saved import router as saved_router
 from backend.routes.schemes import router as schemes_router
 from backend.routes.chat import router as chat_router
 
-app = FastAPI(title="ScholarshipRAG API", version="0.1.0")
+app = FastAPI(title="ScholarMatch AI API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,

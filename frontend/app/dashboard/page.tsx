@@ -15,8 +15,8 @@ export default async function DashboardPage() {
       <div className="panel hero-panel fade-in">
         <div>
           <p className="eyebrow">{dashboard.name}&apos;s Dashboard</p>
-          <h1>Find Scholarships That Actually Fit You</h1>
-          <p className="subtle">AI-powered scholarship discovery, eligibility matching, and guidance.</p>
+          <h1>Find Your Perfect Scholarship with AI</h1>
+          <p className="subtle">AI-powered scholarship discovery and recommendations.</p>
         </div>
       </div>
 
