@@ -2,8 +2,10 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    QDRANT_HOST: str = "localhost"
-    QDRANT_PORT: int = 6333
+    
+
+    QDRANT_URL: str
+    QDRANT_API_KEY: str
     QDRANT_COLLECTION: str = "scholarships"
     REDIS_URL: str = "redis://localhost:6379"
     POSTGRES_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/scholarshiprag"
