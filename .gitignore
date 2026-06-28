@@ -14,7 +14,7 @@ node_modules/
 .next/
 
 # Qdrant
-qdrant/
+/qdrant
 storage/
 snapshots/
 qdrant.log
