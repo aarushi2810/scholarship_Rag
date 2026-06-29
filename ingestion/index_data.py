@@ -43,7 +43,11 @@ def main() -> None:
     embedder.save_sparse_vectorizer(VECTORIZER_PATH)
     dense_vectors = embedder.embed_dense(texts)
 
-    client = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
+  
+    client = QdrantClient(
+    url=settings.QDRANT_URL,
+    api_key=settings.QDRANT_API_KEY,
+)
     client.recreate_collection(
         collection_name=settings.QDRANT_COLLECTION,
         vectors_config={
