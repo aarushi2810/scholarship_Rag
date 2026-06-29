@@ -23,10 +23,16 @@ jobs:
 
           rsync -av --delete \
             --exclude ".git" \
-            ./ hf/
+            --exclude "hf" \
+            ./ hf/ || true
 
           cd hf
 
           git add .
-          git commit -m "Automatic deploy" || echo "Nothing to commit"
-          git push
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Automatic deploy"
+            git push
+          fi
