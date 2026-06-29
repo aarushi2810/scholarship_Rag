@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <nav className="nav" aria-label="Primary navigation">
                 <Link href="/dashboard">Dashboard</Link>
                 <Link href="/search">Search</Link>
-                <Link href="/scheme/nsp_merit_punjab">Scheme Detail</Link>
+                <Link href="/saved">Saved</Link>
                 <UserMenu />
               </nav>
             </header>
