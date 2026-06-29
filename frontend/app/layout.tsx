@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AIAdvisor } from "./components/AIAdvisor";
+import { AuthProvider } from "./components/AuthContext";
+import { UserMenu } from "./components/UserMenu";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,21 +14,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <div className="shell">
-          <header className="topbar">
-            <Link className="brand" href="/dashboard">
-              <span className="brand-mark">SM</span>
-              <span>ScholarMatch AI</span>
-            </Link>
-            <nav className="nav" aria-label="Primary navigation">
-              <Link href="/dashboard">Dashboard</Link>
-              <Link href="/search">Search</Link>
-              <Link href="/scheme/nsp_merit_punjab">Scheme Detail</Link>
-            </nav>
-          </header>
-          {children}
-          <AIAdvisor />
-        </div>
+        <AuthProvider>
+          <div className="shell">
+            <header className="topbar">
+              <Link className="brand" href="/dashboard">
+                <span className="brand-mark">SM</span>
+                <span>ScholarMatch AI</span>
+              </Link>
+              <nav className="nav" aria-label="Primary navigation">
+                <Link href="/dashboard">Dashboard</Link>
+                <Link href="/search">Search</Link>
+                <Link href="/scheme/nsp_merit_punjab">Scheme Detail</Link>
+                <UserMenu />
+              </nav>
+            </header>
+            {children}
+            <AIAdvisor />
+          </div>
+        </AuthProvider>
       </body>
     </html>
   );
