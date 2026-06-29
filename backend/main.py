@@ -20,6 +20,7 @@ from backend.routes.profile import router as profile_router
 from backend.routes.recommendations import router as recommendations_router
 from backend.routes.saved import router as saved_router
 from backend.routes.schemes import router as schemes_router
+from backend.routes.search import router as search_router
 
 logger = logging.getLogger(__name__)
 
@@ -109,3 +110,4 @@ app.include_router(recommendations_router)
 app.include_router(saved_router)
 app.include_router(dashboard_router)
 app.include_router(chat_router)
+app.include_router(search_router)
