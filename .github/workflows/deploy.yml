@@ -1,0 +1,32 @@
+name: Deploy to Hugging Face Space
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Push to Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+
+          git clone https://oauth2:${HF_TOKEN}@huggingface.co/spaces/aarushi63/scholarship-rag hf
+
+          rsync -av --delete \
+            --exclude ".git" \
+            ./ hf/
+
+          cd hf
+
+          git add .
+          git commit -m "Automatic deploy" || echo "Nothing to commit"
+          git push
