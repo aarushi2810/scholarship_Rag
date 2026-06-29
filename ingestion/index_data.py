@@ -44,17 +44,40 @@ def main() -> None:
     dense_vectors = embedder.embed_dense(texts)
 
   
+ 
+
     client = QdrantClient(
+
     url=settings.QDRANT_URL,
+
     api_key=settings.QDRANT_API_KEY,
+
+    timeout=300,      # 5 minutes
+
 )
-    client.recreate_collection(
-        collection_name=settings.QDRANT_COLLECTION,
-        vectors_config={
-            "dense": models.VectorParams(
-                size=settings.EMBEDDING_DIM,
-                distance=models.Distance.COSINE,
-            )
+    
+
+       if client.collection_exists(settings.QDRANT_COLLECTION):
+    client.delete_collection(settings.QDRANT_COLLECTION)
+
+   client.create_collection(
+    collection_name=settings.QDRANT_COLLECTION,
+    vectors_config={
+        "dense": models.VectorParams(
+            size=settings.EMBEDDING_DIM,
+            distance=models.Distance.COSINE,
+        )
+    },
+    sparse_vectors_config={
+        "sparse": models.SparseVectorParams(
+            index=models.SparseIndexParams(on_disk=False)
+        )
+    },
+)     
+
+
+
+            
         },
         sparse_vectors_config={
             "sparse": models.SparseVectorParams(
@@ -79,7 +102,29 @@ def main() -> None:
             )
         )
 
-    client.upsert(collection_name=settings.QDRANT_COLLECTION, points=points)
+   
+
+    BATCH_SIZE = 20
+
+for i in range(0, len(points), BATCH_SIZE):
+
+    batch = points[i:i+BATCH_SIZE]
+
+    client.upsert(
+
+        collection_name=settings.QDRANT_COLLECTION,
+
+        points=batch,
+
+        wait=True,
+
+    )
+
+    print(
+
+        f"Uploaded {min(i + BATCH_SIZE, len(points))}/{len(points)} points"
+
+    )
     print(
         f"Indexed {len(chunks)} chunks from {len(schemes)} schemes into "
         f"{settings.QDRANT_COLLECTION}; saved {VECTORIZER_PATH}"
