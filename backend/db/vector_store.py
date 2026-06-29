@@ -34,10 +34,12 @@ _VECTORIZER_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "tfi
 # ── Clients / models (module-level singletons) ─────────────────────────────────
 
 
+
 qdrant_client = QdrantClient(
-    url=settings.QDRANT_URL,
-    api_key=settings.QDRANT_API_KEY,
+    url=settings.QDRANT_URL.strip(),
+    api_key=settings.QDRANT_API_KEY.strip(),
 )
+
 
 _dense_model: SentenceTransformer | None = None
 _tfidf_vectorizer: TfidfVectorizer | None = None
