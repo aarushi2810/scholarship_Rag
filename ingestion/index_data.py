@@ -33,51 +33,50 @@ def main() -> None:
 
     from ingestion.embedder import SchemeEmbedder
 
+    print("Loading scholarship dataset...")
+
     schemes = load_schemes()
     chunks = chunk_all_schemes(schemes)
     texts = [chunk.text for chunk in chunks]
 
+    print(f"Loaded {len(schemes)} schemes")
+    print(f"Generated {len(chunks)} chunks")
+
+    # -----------------------------
+    # Generate embeddings
+    # -----------------------------
     embedder = SchemeEmbedder(settings.EMBEDDING_MODEL)
+
+    print("Training TF-IDF vectorizer...")
     embedder.fit_sparse(texts)
+
     sparse_vectors = embedder.embed_sparse(texts)
     embedder.save_sparse_vectorizer(VECTORIZER_PATH)
+
+    print("Generating dense embeddings...")
     dense_vectors = embedder.embed_dense(texts)
 
-  
- 
-
+    # -----------------------------
+    # Connect to Qdrant Cloud
+    # -----------------------------
     client = QdrantClient(
+        url=settings.QDRANT_URL,
+        api_key=settings.QDRANT_API_KEY,
+        timeout=300,
+    )
 
-    url=settings.QDRANT_URL,
+    print("Preparing Qdrant collection...")
 
-    api_key=settings.QDRANT_API_KEY,
+    if client.collection_exists(settings.QDRANT_COLLECTION):
+        client.delete_collection(settings.QDRANT_COLLECTION)
 
-    timeout=300,      # 5 minutes
-
-)
-    
-
-       if client.collection_exists(settings.QDRANT_COLLECTION):
-    client.delete_collection(settings.QDRANT_COLLECTION)
-
-   client.create_collection(
-    collection_name=settings.QDRANT_COLLECTION,
-    vectors_config={
-        "dense": models.VectorParams(
-            size=settings.EMBEDDING_DIM,
-            distance=models.Distance.COSINE,
-        )
-    },
-    sparse_vectors_config={
-        "sparse": models.SparseVectorParams(
-            index=models.SparseIndexParams(on_disk=False)
-        )
-    },
-)     
-
-
-
-            
+    client.create_collection(
+        collection_name=settings.QDRANT_COLLECTION,
+        vectors_config={
+            "dense": models.VectorParams(
+                size=settings.EMBEDDING_DIM,
+                distance=models.Distance.COSINE,
+            )
         },
         sparse_vectors_config={
             "sparse": models.SparseVectorParams(
@@ -86,8 +85,17 @@ def main() -> None:
         },
     )
 
+    # -----------------------------
+    # Build points
+    # -----------------------------
     points: list[models.PointStruct] = []
-    for chunk, dense, sparse in zip(chunks, dense_vectors, sparse_vectors, strict=True):
+
+    for chunk, dense, sparse in zip(
+        chunks,
+        dense_vectors,
+        sparse_vectors,
+        strict=True,
+    ):
         points.append(
             models.PointStruct(
                 id=point_id(chunk.chunk_id),
@@ -98,37 +106,42 @@ def main() -> None:
                         values=sparse["values"],
                     ),
                 },
-                payload={**chunk.metadata, "chunk_id": chunk.chunk_id, "text": chunk.text},
+                payload={
+                    **chunk.metadata,
+                    "chunk_id": chunk.chunk_id,
+                    "text": chunk.text,
+                },
             )
         )
 
-   
+    print(f"Uploading {len(points)} vectors to Qdrant...")
 
+    # -----------------------------
+    # Upload in batches
+    # -----------------------------
     BATCH_SIZE = 20
 
-for i in range(0, len(points), BATCH_SIZE):
+    for i in range(0, len(points), BATCH_SIZE):
+        batch = points[i : i + BATCH_SIZE]
 
-    batch = points[i:i+BATCH_SIZE]
+        client.upsert(
+            collection_name=settings.QDRANT_COLLECTION,
+            points=batch,
+            wait=True,
+        )
 
-    client.upsert(
+        print(
+            f"Uploaded {min(i + BATCH_SIZE, len(points))}/{len(points)} vectors"
+        )
 
-        collection_name=settings.QDRANT_COLLECTION,
+    print("\n Indexing completed successfully!")
 
-        points=batch,
-
-        wait=True,
-
-    )
-
-    print(
-
-        f"Uploaded {min(i + BATCH_SIZE, len(points))}/{len(points)} points"
-
-    )
     print(
         f"Indexed {len(chunks)} chunks from {len(schemes)} schemes into "
-        f"{settings.QDRANT_COLLECTION}; saved {VECTORIZER_PATH}"
+        f"'{settings.QDRANT_COLLECTION}'"
     )
+
+    print(f"TF-IDF vectorizer saved to: {VECTORIZER_PATH}")
 
 
 if __name__ == "__main__":
