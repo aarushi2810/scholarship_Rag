@@ -62,6 +62,9 @@ def _get_tfidf_vectorizer() -> TfidfVectorizer:
     global _tfidf_vectorizer
     if _tfidf_vectorizer is not None:
         return _tfidf_vectorizer
+    logger.info(f"Looking for vectorizer at: {_VECTORIZER_PATH}")
+    logger.info(f"Exists? {_VECTORIZER_PATH.exists()}")  
+      
 
     if _VECTORIZER_PATH.exists():
         logger.info("Loading TF-IDF vectorizer from %s", _VECTORIZER_PATH)
