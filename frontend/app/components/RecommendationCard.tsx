@@ -43,6 +43,8 @@ export function RecommendationCard({
     }
   }
 
+  const urgencyBoost = (item as { urgency_boost?: boolean }).urgency_boost;
+
   return (
     <article className="card fade-in">
       <div className="card-head">
@@ -66,8 +68,13 @@ export function RecommendationCard({
       <div className="pill-row">
         <span className="badge emerald">{supportLabel(scheme)}</span>
         <span className="badge cyan">{item.match_score}% Match</span>
+        {urgencyBoost && (
+          <span className="badge rose badge--urgent">🔥 Deadline Soon</span>
+        )}
         {item.deadline_days_left !== null ? (
-          <span className="badge amber">{item.deadline_days_left} Days Remaining</span>
+          <span className={`badge ${(item.deadline_days_left ?? 999) <= 7 ? "rose" : "amber"}`}>
+            {item.deadline_days_left} Days Left
+          </span>
         ) : null}
       </div>
 
@@ -80,13 +87,27 @@ export function RecommendationCard({
         ))}
       </div>
 
-      <div className="reason-list" aria-label="Why recommended">
-        {item.reasons.map((reason) => (
-          <span className="reason" key={reason}>
-            ✓ {reason}
-          </span>
-        ))}
-      </div>
+      {/* Why recommended */}
+      {item.reasons.length > 0 && (
+        <div className="reason-list" aria-label="Why recommended">
+          {item.reasons.map((reason) => (
+            <span className="reason" key={reason}>
+              ✓ {reason}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Missing / mismatch warnings */}
+      {item.missing_or_mismatch.length > 0 && (
+        <div className="mismatch-list" aria-label="Eligibility gaps">
+          {item.missing_or_mismatch.map((note) => (
+            <span className="mismatch" key={note}>
+              ⚠ {note}
+            </span>
+          ))}
+        </div>
+      )}
 
       <div className="actions">
         <Link className="button primary" href={`/scheme/${scheme.scheme_id}`}>
@@ -104,4 +125,3 @@ export function RecommendationCard({
     </article>
   );
 }
-
