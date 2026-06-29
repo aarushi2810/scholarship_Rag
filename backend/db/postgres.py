@@ -10,9 +10,12 @@ from backend.config import settings
 from backend.db.models import Base
 
 
+
 engine = create_async_engine(
     settings.POSTGRES_URL,
     connect_args={"ssl": True},
+    pool_pre_ping=True,
+    pool_recycle=300,
     echo=False,
 )
 
