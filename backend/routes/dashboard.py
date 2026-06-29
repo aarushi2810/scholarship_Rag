@@ -47,8 +47,16 @@ async def get_dashboard(
         profile_completion=profile_completion(current_user),
         top_matches=top_matches,
         saved_scholarships=saved_items,
+        category=current_user.category,
+        income=current_user.income,
+        education_level=current_user.education_level,
+        state=current_user.state,
+        degree=current_user.degree,
+        cgpa=current_user.cgpa,
+        gender=current_user.gender,
     )
 
 
 def _display_name(email: str) -> str:
     return email.split("@", 1)[0].replace(".", " ").replace("_", " ").title()
+
