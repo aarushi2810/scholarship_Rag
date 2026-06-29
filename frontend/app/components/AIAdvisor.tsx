@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { ChatWindow } from "./ChatWindow";
 
+const AUTH_ROUTES = ["/login", "/register"];
+
 export function AIAdvisor() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
@@ -11,6 +13,11 @@ export function AIAdvisor() {
   useEffect(() => {
     setIsOpen(false);
   }, [pathname]);
+
+  // Don't show the AI advisor on auth pages
+  if (AUTH_ROUTES.some((route) => pathname.startsWith(route))) {
+    return null;
+  }
 
   return (
     <>
@@ -55,4 +62,5 @@ export function AIAdvisor() {
     </>
   );
 }
+
 
