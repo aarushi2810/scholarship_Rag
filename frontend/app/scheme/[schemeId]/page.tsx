@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ApplicationChecklist } from "../../components/ApplicationChecklist";
 import { SaveButton } from "../../components/SaveButton";
 import { formatIncome, getScheme, supportLabel } from "../../../lib/api";
 
@@ -74,6 +75,8 @@ export default async function SchemeDetailPage({ params }: { params: Promise<{ s
             <Link className="button" href="/search">Search More</Link>
           </div>
         </section>
+
+        <ApplicationChecklist scheme={scheme} />
 
         <section className="panel">
           <h2>Related Paths</h2>
