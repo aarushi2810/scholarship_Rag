@@ -65,6 +65,16 @@ class RecommendationRead(BaseModel):
     deadline_days_left: int | None
     reasons: list[str]
     missing_or_mismatch: list[str]
+    urgency_boost: bool = False
+
+
+class SearchResult(BaseModel):
+    scholarship: ScholarshipRead
+    match_score: int | None  # None for anonymous users
+    semantic_score: float
+    deadline_days_left: int | None
+    reasons: list[str]
+    missing_or_mismatch: list[str]
 
 
 class SavedScholarshipRead(BaseModel):
@@ -79,6 +89,14 @@ class DashboardRead(BaseModel):
     profile_completion: int
     top_matches: list[RecommendationRead]
     saved_scholarships: list[SavedScholarshipRead]
+    # Profile fields for the completion widget
+    category: str | None = None
+    income: float | None = None
+    education_level: str | None = None
+    state: str | None = None
+    degree: str | None = None
+    cgpa: float | None = None
+    gender: str | None = None
 
 
 class ChatSource(BaseModel):
