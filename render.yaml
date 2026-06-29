@@ -5,10 +5,12 @@ services:
     dockerfilePath: backend/Dockerfile
     plan: free
     envVars:
-      - key:  QDRANT_URL
-        sync: false
-      - key:  QDRANT_API_KEY
-        sync: false
+      - key: PORT
+        value: 8000
+      - key: QDRANT_HOST
+        sync: false # User will provide Qdrant Cloud host
+      - key: QDRANT_PORT
+        value: 6333
       - key: QDRANT_COLLECTION
         value: scholarships
       - key: REDIS_URL
@@ -18,7 +20,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false # User will provide their Gemini API key
       - key: JWT_SECRET
-        generateValue: true # Render will automatically generate a secure random value
+        sync: false # Set this to a fixed value in Render dashboard — do NOT use generateValue
       - key: JWT_ALGORITHM
         value: HS256
       - key: JWT_EXPIRE_MINUTES
