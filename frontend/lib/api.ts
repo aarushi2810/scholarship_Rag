@@ -37,6 +37,14 @@ export type Dashboard = {
   profile_completion: number;
   top_matches: Recommendation[];
   saved_scholarships: SavedScholarship[];
+  // Profile fields for the completion widget
+  category: string | null;
+  income: number | null;
+  education_level: string | null;
+  state: string | null;
+  degree: string | null;
+  cgpa: number | null;
+  gender: string | null;
 };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -138,6 +146,13 @@ export const demoDashboard: Dashboard = {
       deadline_days_left: 89,
     },
   ],
+  category: "General",
+  income: 600000,
+  education_level: "UG",
+  state: "Punjab",
+  degree: "B.Tech",
+  cgpa: 8.5,
+  gender: "Female",
 };
 
 function recommendation(
@@ -267,6 +282,10 @@ export async function unsaveScholarship(schemeId: string): Promise<boolean> {
   }
 }
 
+export async function getSavedScholarships(): Promise<SavedScholarship[]> {
+  return getJson<SavedScholarship[]>("/saved", []);
+}
+
 export async function sendChatMessage(message: string): Promise<ChatResponse> {
   const fallback: ChatResponse = {
     answer: "I couldn't reach the advisor. Please check your network connection and try again.",
@@ -288,3 +307,45 @@ export async function sendChatMessage(message: string): Promise<ChatResponse> {
   }
 }
 
+/* ── Search API ──────────────────────────────────────────────────────────── */
+
+export type SearchResult = {
+  scholarship: Scholarship;
+  match_score: number | null; // null for anonymous users
+  semantic_score: number;
+  deadline_days_left: number | null;
+  reasons: string[];
+  missing_or_mismatch: string[];
+};
+
+export type SearchFilters = {
+  state?: string;
+  category?: string;
+  education_level?: string;
+  sort?: "match" | "deadline";
+  limit?: number;
+};
+
+export async function semanticSearch(
+  query: string,
+  filters: SearchFilters = {},
+): Promise<SearchResult[]> {
+  const params = new URLSearchParams();
+  if (query) params.set("q", query);
+  if (filters.state) params.set("state", filters.state);
+  if (filters.category) params.set("category", filters.category);
+  if (filters.education_level) params.set("education_level", filters.education_level);
+  if (filters.sort) params.set("sort", filters.sort);
+  if (filters.limit) params.set("limit", String(filters.limit));
+
+  try {
+    const response = await fetch(`${API_BASE}/search?${params.toString()}`, {
+      headers: authHeaders(), // optional — anonymous requests still work
+      cache: "no-store",
+    });
+    if (!response.ok) return [];
+    return (await response.json()) as SearchResult[];
+  } catch {
+    return [];
+  }
+}
