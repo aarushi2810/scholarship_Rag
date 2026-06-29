@@ -9,7 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from backend.config import settings
 from backend.db.models import Base
 
-engine = create_async_engine(settings.POSTGRES_URL, echo=False)
+
+engine = create_async_engine(
+    settings.POSTGRES_URL,
+    connect_args={"ssl": True},
+    echo=False,
+)
 
 AsyncSessionLocal = async_sessionmaker(
     bind=engine, class_=AsyncSession, expire_on_commit=False
