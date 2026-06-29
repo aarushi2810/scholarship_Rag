@@ -1,3 +1,5 @@
+import { getToken } from "./auth";
+
 export type Scholarship = {
   id: number;
   scheme_id: string;
@@ -174,8 +176,41 @@ async function getJson<T>(path: string, fallback: T): Promise<T> {
 }
 
 function authHeaders(): HeadersInit {
-  const token = process.env.NEXT_PUBLIC_DEMO_TOKEN;
+  // Read the live token from localStorage (set after login/signup).
+  // Falls back gracefully to empty headers when the user is not logged in.
+  const token = getToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+/* ── Auth API calls ────────────────────────────────────────────────────────── */
+
+export type AuthPayload = { email: string; password: string };
+export type AuthToken = { access_token: string; token_type: string };
+
+export async function loginUser(payload: AuthPayload): Promise<AuthToken> {
+  const response = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { detail?: string }).detail ?? "Login failed");
+  }
+  return (await response.json()) as AuthToken;
+}
+
+export async function signupUser(payload: AuthPayload): Promise<AuthToken> {
+  const response = await fetch(`${API_BASE}/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { detail?: string }).detail ?? "Registration failed");
+  }
+  return (await response.json()) as AuthToken;
 }
 
 export function formatIncome(value: number | null): string {
