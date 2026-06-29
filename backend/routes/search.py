@@ -9,7 +9,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth.security import get_optional_user
+
+from backend.auth.security import get_current_user
 from backend.db.models import Scholarship, User
 from backend.db.postgres import get_db
 from backend.db.vector_store import hybrid_search
@@ -32,7 +33,8 @@ async def semantic_search(
     education_level: str = Query(default="", description="Filter by education level"),
     sort: Literal["match", "deadline"] = Query(default="match"),
     limit: int = Query(default=20, ge=1, le=50),
-    current_user: User | None = Depends(get_optional_user),
+   
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[SearchResult]:
     """Hybrid semantic search over scholarships.
@@ -111,15 +113,13 @@ async def semantic_search(
         semantic_score = score_map.get(sid, 0.0)
         ddl = days_until_deadline(scholarship.deadline)
 
-        if current_user is not None:
-            scored = score_scholarship(current_user, scholarship)
-            match_score: int | None = scored["match_score"]
-            reasons = scored["reasons"]
-            missing_or_mismatch = scored["missing_or_mismatch"]
-        else:
-            match_score = None
-            reasons = []
-            missing_or_mismatch = []
+        
+
+        scored = score_scholarship(current_user, scholarship)
+
+        match_score = scored["match_score"]
+        reasons = scored["reasons"]
+        missing_or_mismatch = scored["missing_or_mismatch"]
 
         output.append(
             SearchResult(
@@ -139,7 +139,8 @@ async def semantic_search(
                 r.deadline_days_left if r.deadline_days_left is not None else 9999
             )
         )
-    elif sort == "match" and current_user is not None:
+    
+    elif sort == "match":
         output.sort(key=lambda r: (r.match_score or 0), reverse=True)
 
     return output[:limit]
