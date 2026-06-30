@@ -89,6 +89,7 @@ class DashboardRead(BaseModel):
     profile_completion: int
     top_matches: list[RecommendationRead]
     saved_scholarships: list[SavedScholarshipRead]
+    eligible_count: int = 0  # total scholarships in catalogue — eliminates /schemes call
     # Profile fields for the completion widget
     category: str | None = None
     income: float | None = None
