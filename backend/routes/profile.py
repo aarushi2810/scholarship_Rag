@@ -9,6 +9,7 @@ from backend.auth.security import get_current_user
 from backend.db.models import User
 from backend.db.postgres import get_db
 from backend.recommendation.eligibility_scorer import profile_completion
+from backend.routes.dashboard import invalidate_dashboard_cache
 from backend.schemas import ProfileUpdate, UserProfile
 
 router = APIRouter(prefix="/profile", tags=["profile"])
@@ -47,4 +48,6 @@ async def update_profile(
     db.add(current_user)
     await db.commit()
     await db.refresh(current_user)
+    # Profile changed — bust the per-user dashboard cache so next load is fresh
+    invalidate_dashboard_cache(current_user.id)
     return _profile_response(current_user)
