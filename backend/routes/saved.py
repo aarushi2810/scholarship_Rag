@@ -11,6 +11,7 @@ from backend.auth.security import get_current_user
 from backend.db.models import SavedScholarship, Scholarship, User
 from backend.db.postgres import get_db
 from backend.recommendation.eligibility_scorer import days_until_deadline
+from backend.routes.dashboard import invalidate_dashboard_cache
 from backend.schemas import SavedScholarshipRead
 
 router = APIRouter(prefix="/saved", tags=["saved scholarships"])
@@ -65,6 +66,7 @@ async def save_scholarship(
     await db.commit()
     await db.refresh(saved)
     saved.scholarship = scholarship
+    invalidate_dashboard_cache(current_user.id)  # saved count changed
     return _saved_response(saved)
 
 
@@ -86,3 +88,4 @@ async def unsave_scholarship(
     if saved is not None:
         await db.delete(saved)
         await db.commit()
+        invalidate_dashboard_cache(current_user.id)  # saved count changed
