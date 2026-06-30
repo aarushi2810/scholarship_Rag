@@ -1,13 +1,66 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { DeadlineAlerts } from "../components/DeadlineAlerts";
 import { ProfileCompletion } from "../components/ProfileCompletion";
 import { RecommendationCard } from "../components/RecommendationCard";
-import { getDashboard, getSchemes } from "../../lib/api";
+import { getDashboard } from "../../lib/api";
 
-export default async function DashboardPage() {
-  const [dashboard, allSchemes] = await Promise.all([getDashboard(), getSchemes()]);
+/* ── Skeleton used while the async data loads ────────────────────────────── */
+function DashboardSkeleton() {
+  return (
+    <main className="page" aria-busy="true" aria-label="Loading dashboard">
+      {/* Stats row skeleton */}
+      <section className="stats-grid">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="stat-card">
+            <div className="skeleton skeleton--line skeleton--short" style={{ marginBottom: 8 }} />
+            <div className="skeleton skeleton--title" style={{ width: "60%" }} />
+          </div>
+        ))}
+      </section>
 
-  const eligibleCount = allSchemes.length;
+      <div className="grid">
+        <aside className="stack">
+          {/* Profile completion skeleton */}
+          <section className="panel">
+            <div className="skeleton skeleton--title" style={{ marginBottom: 12 }} />
+            <div className="skeleton skeleton--line" style={{ marginBottom: 8 }} />
+            <div className="skeleton skeleton--line skeleton--short" />
+          </section>
+          {/* Saved scholarship list skeleton */}
+          <section className="panel">
+            <div className="skeleton skeleton--title" style={{ marginBottom: 12 }} />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="skeleton skeleton--line" style={{ marginBottom: 8 }} />
+            ))}
+          </section>
+        </aside>
+
+        <section className="stack">
+          <div className="panel">
+            <div className="skeleton skeleton--title" style={{ marginBottom: 8 }} />
+            <div className="skeleton skeleton--line skeleton--short" />
+          </div>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="card skeleton-card">
+              <div className="skeleton skeleton--title" />
+              <div className="skeleton skeleton--line" />
+              <div className="skeleton skeleton--line skeleton--short" />
+            </div>
+          ))}
+        </section>
+      </div>
+    </main>
+  );
+}
+
+/* ── Actual dashboard content — streamed in via Suspense ──────────────────── */
+async function DashboardContent() {
+  // Single API call — eligible_count is now returned by /dashboard directly,
+  // so the separate /schemes call has been eliminated entirely.
+  const dashboard = await getDashboard();
+
+  const eligibleCount = dashboard.eligible_count;
   const closingSoon = dashboard.saved_scholarships.filter(
     (item) => item.deadline_days_left !== null && item.deadline_days_left <= 30,
   ).length;
@@ -19,10 +72,8 @@ export default async function DashboardPage() {
         )
       : null;
 
-  // Extract first name for greeting
   const firstName = dashboard.name.split(" ")[0];
 
-  // Profile fields for the completion widget
   const profileFields = {
     category: dashboard.category,
     income: dashboard.income,
@@ -185,5 +236,14 @@ export default async function DashboardPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+/* ── Page entry point ─────────────────────────────────────────────────────── */
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DashboardContent />
+    </Suspense>
   );
 }
