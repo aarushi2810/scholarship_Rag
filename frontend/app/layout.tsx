@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AIAdvisor } from "./components/AIAdvisor";
+import { AppShell } from "./components/AppShell";
 import { AuthProvider } from "./components/AuthContext";
 import { UserMenu } from "./components/UserMenu";
 import "./globals.css";
@@ -28,8 +28,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <UserMenu />
               </nav>
             </header>
-            {children}
-            <AIAdvisor />
+            {/*
+             * AppShell is a client component that lazy-loads AIAdvisor (ssr:false).
+             * This keeps RootLayout as a Server Component while still deferring
+             * the chat bundle from the critical render path.
+             */}
+            <AppShell>{children}</AppShell>
           </div>
         </AuthProvider>
       </body>
