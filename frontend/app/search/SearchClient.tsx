@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   formatIncome,
   semanticSearch,
@@ -11,6 +11,7 @@ import {
   type SearchResult,
 } from "../../lib/api";
 
+/* ── Debounce hook ─────────────────────────────────────────────────────────── */
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -20,6 +21,7 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced;
 }
 
+/* ── Skeleton card (shown while loading) ───────────────────────────────────── */
 function SkeletonCard() {
   return (
     <div className="card skeleton-card" aria-hidden="true">
@@ -30,6 +32,7 @@ function SkeletonCard() {
   );
 }
 
+/* ── Individual search result card ─────────────────────────────────────────── */
 function SearchResultCard({ result }: { result: SearchResult }) {
   const scheme = result.scholarship;
   const [isSaved, setIsSaved] = useState(false);
@@ -134,38 +137,86 @@ function SearchResultCard({ result }: { result: SearchResult }) {
   );
 }
 
+/* ── Sort helper (client-side, no network request) ─────────────────────────── */
+function sortResults(results: SearchResult[], sort: "match" | "deadline"): SearchResult[] {
+  const copy = [...results];
+  if (sort === "deadline") {
+    copy.sort((a, b) => {
+      const da = a.deadline_days_left ?? 9999;
+      const db = b.deadline_days_left ?? 9999;
+      return da - db;
+    });
+  } else {
+    // "match" — sort by match_score desc, fall back to semantic_score
+    copy.sort((a, b) => {
+      const ma = a.match_score ?? a.semantic_score * 100;
+      const mb = b.match_score ?? b.semantic_score * 100;
+      return mb - ma;
+    });
+  }
+  return copy;
+}
+
+/* ── Main search component ──────────────────────────────────────────────────── */
 export function SearchClient() {
   const [query, setQuery] = useState("");
   const [state, setState] = useState("");
   const [category, setCategory] = useState("");
   const [education, setEducation] = useState("");
   const [sort, setSort] = useState<"match" | "deadline">("match");
-  const [results, setResults] = useState<SearchResult[]>([]);
+
+  // Raw results from the server (unsorted, cached by query+filters)
+  const [rawResults, setRawResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
-  const debouncedQuery = useDebounce(query, 300);
+  // Debounce the text query at 400ms
+  const debouncedQuery = useDebounce(query, 400);
+
+  // Debounce the filter tuple at 300ms so rapid dropdown changes don't fire
+  // multiple requests
+  const filterTuple = useMemo(
+    () => ({ state, category, education }),
+    [state, category, education],
+  );
+  const debouncedFilters = useDebounce(filterTuple, 300);
+
+  // Track the last request params to avoid duplicate fetches
+  const lastFetchRef = useRef<string>("");
 
   const runSearch = useCallback(async () => {
+    const fetchKey = JSON.stringify({
+      q: debouncedQuery,
+      ...debouncedFilters,
+    });
+
+    // Skip if nothing changed since the last fetch
+    if (fetchKey === lastFetchRef.current && hasSearched) return;
+    lastFetchRef.current = fetchKey;
+
     setLoading(true);
     setHasSearched(true);
     try {
       const data = await semanticSearch(debouncedQuery, {
-        state: state || undefined,
-        category: category || undefined,
-        education_level: education || undefined,
-        sort,
+        state: debouncedFilters.state || undefined,
+        category: debouncedFilters.category || undefined,
+        education_level: debouncedFilters.education || undefined,
+        // Do NOT pass sort to the server — we sort client-side so the
+        // cached result can be re-sorted without a new network request.
       });
-      setResults(data);
+      setRawResults(data);
     } finally {
       setLoading(false);
     }
-  }, [debouncedQuery, state, category, education, sort]);
+  }, [debouncedQuery, debouncedFilters, hasSearched]);
 
   // Re-run search whenever debounced query or filters change
   useEffect(() => {
     runSearch();
   }, [runSearch]);
+
+  // Client-side sort — no network request needed
+  const results = useMemo(() => sortResults(rawResults, sort), [rawResults, sort]);
 
   return (
     <>
@@ -179,7 +230,7 @@ export function SearchClient() {
             {!loading && hasSearched && (
               <span className="badge cyan">{results.length} Results</span>
             )}
-            {/* Sort toggle */}
+            {/* Sort toggle — now purely client-side, no network request */}
             <div className="sort-toggle">
               <button
                 type="button"
@@ -231,7 +282,6 @@ export function SearchClient() {
 
       <section className="stack">
         {loading ? (
-          // Loading skeletons
           Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
         ) : results.length === 0 && hasSearched ? (
           <div className="panel" style={{ textAlign: "center", padding: "40px" }}>
