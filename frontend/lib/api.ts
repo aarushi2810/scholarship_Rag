@@ -37,6 +37,7 @@ export type Dashboard = {
   profile_completion: number;
   top_matches: Recommendation[];
   saved_scholarships: SavedScholarship[];
+  eligible_count: number; // returned by backend, eliminates separate /schemes call
   // Profile fields for the completion widget
   category: string | null;
   income: number | null;
@@ -146,6 +147,7 @@ export const demoDashboard: Dashboard = {
       deadline_days_left: 89,
     },
   ],
+  eligible_count: scholarships.length,
   category: "General",
   income: 600000,
   education_level: "UG",
@@ -181,7 +183,9 @@ async function getJson<T>(path: string, fallback: T): Promise<T> {
   try {
     const response = await fetch(`${API_BASE}${path}`, {
       headers: authHeaders(),
-      cache: "no-store",
+      // Use no-cache (conditional request) rather than no-store so the browser
+      // can still revalidate — avoids re-downloading unchanged payloads.
+      cache: "no-cache",
     });
     if (!response.ok) return fallback;
     return (await response.json()) as T;
@@ -326,25 +330,53 @@ export type SearchFilters = {
   limit?: number;
 };
 
+// ── Client-side search result cache ──────────────────────────────────────────
+// Keyed by serialized params. TTL: 2 minutes. Prevents re-fetching on back-navigation
+// or toggling sort (which is now handled client-side).
+const _searchCache = new Map<string, { data: SearchResult[]; ts: number }>();
+const SEARCH_CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+
+function _searchCacheKey(query: string, filters: SearchFilters): string {
+  return JSON.stringify({ q: query, ...filters });
+}
+
+/** Clear the client-side search cache (e.g. after login/logout). */
+export function clearSearchCache(): void {
+  _searchCache.clear();
+}
+
 export async function semanticSearch(
   query: string,
   filters: SearchFilters = {},
 ): Promise<SearchResult[]> {
+  // Build a cache key from the full query+filters (sort is excluded because
+  // the frontend now handles re-sorting without a new network request).
+  const { sort, ...filterParams } = filters;
+  const cacheKey = _searchCacheKey(query, filterParams);
+
+  const entry = _searchCache.get(cacheKey);
+  if (entry && Date.now() - entry.ts < SEARCH_CACHE_TTL_MS) {
+    // Cache hit — return immediately; caller handles client-side sort
+    return entry.data;
+  }
+
   const params = new URLSearchParams();
   if (query) params.set("q", query);
   if (filters.state) params.set("state", filters.state);
   if (filters.category) params.set("category", filters.category);
   if (filters.education_level) params.set("education_level", filters.education_level);
-  if (filters.sort) params.set("sort", filters.sort);
+  // Always fetch without sort so the cached result can be re-sorted client-side
   if (filters.limit) params.set("limit", String(filters.limit));
 
   try {
     const response = await fetch(`${API_BASE}/search?${params.toString()}`, {
-      headers: authHeaders(), // optional — anonymous requests still work
-      cache: "no-store",
+      headers: authHeaders(),
+      cache: "no-cache",
     });
     if (!response.ok) return [];
-    return (await response.json()) as SearchResult[];
+    const data = (await response.json()) as SearchResult[];
+    _searchCache.set(cacheKey, { data, ts: Date.now() });
+    return data;
   } catch {
     return [];
   }
