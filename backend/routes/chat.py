@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from flashrank import Ranker, RerankRequest
 
 from backend.auth.security import get_current_user
 from backend.config import settings
@@ -17,25 +18,26 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
-# Lazy-loaded FlashRank singleton
-_ranker = None
+# Initialize FlashRank ranker (singleton)
+try:
+    logger.info("Initializing FlashRank Ranker...")
+    _ranker = Ranker()
+except Exception as e:
+    logger.exception("Failed to initialize FlashRank Ranker")
+    _ranker = None
 
-
-def get_ranker():
-    """Load FlashRank only when first needed."""
-    global _ranker
-
-    if _ranker is None:
-        try:
-            logger.info("Loading FlashRank Ranker...")
-            from flashrank import Ranker
-
-            _ranker = Ranker()
-        except Exception:
-            logger.exception("Failed to initialize FlashRank")
-            _ranker = False
-
-    return None if _ranker is False else _ranker
+# Initialize Gemini client as a module-level singleton.
+# This creates the HTTP session once at startup instead of on every request.
+_gemini_client = None
+_api_key = settings.GEMINI_API_KEY.strip() if settings.GEMINI_API_KEY else ""
+if _api_key:
+    try:
+        from google import genai  # pyrefly: ignore [missing-import]
+        _gemini_client = genai.Client(api_key=_api_key)
+        logger.info("Gemini client initialized as singleton")
+    except Exception:
+        logger.exception("Failed to initialize Gemini client")
+        _gemini_client = None
 
 
 @router.post("", response_model=ChatResponse)
@@ -43,190 +45,163 @@ async def chat_advisor(
     payload: ChatRequest,
     current_user: User = Depends(get_current_user),
 ) -> ChatResponse:
-
+    """RAG-based chat advisor endpoint."""
     message = payload.message.strip()
-
     if not message:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Message cannot be empty",
         )
 
+    # 1. Build eligibility filters based on user profile
     filters = {}
-
     if current_user.category:
         filters["category"] = current_user.category
-
     if current_user.state:
         filters["state"] = current_user.state
-
     if current_user.education_level:
         filters["education_level"] = current_user.education_level
 
+    # 2. Run hybrid search
     try:
-        search_results = hybrid_search(
-            message,
-            filters=filters,
-            top_k=20,
-        )
-    except Exception:
-        logger.exception("Hybrid search failed")
+        search_results = hybrid_search(message, filters=filters, top_k=20)
+    except Exception as e:
+        logger.exception("Error during hybrid search")
         search_results = []
 
+    # 3. Rerank using FlashRank
     top_passages = []
-
-    ranker = get_ranker()
-
     if search_results:
-
-        if ranker:
-
-            from flashrank import RerankRequest
-
+        if _ranker is not None:
             passages = [
                 {
-                    "id": i,
-                    "text": r["text"],
+                    "id": idx,
+                    "text": result["text"],
                     "meta": {
-                        "scheme_id": r["scheme_id"],
-                        "scheme_name": r["scheme_name"],
-                        "source_url": r["source_url"],
+                        "scheme_id": result["scheme_id"],
+                        "scheme_name": result["scheme_name"],
+                        "source_url": result["source_url"],
                     },
                 }
-                for i, r in enumerate(search_results)
+                for idx, result in enumerate(search_results)
             ]
-
             try:
-                rerank_request = RerankRequest(
-                    query=message,
-                    passages=passages,
-                )
-
-                top_passages = ranker.rerank(rerank_request)[:5]
-
-            except Exception:
-                logger.exception("FlashRank failed")
-
-        if not top_passages:
+                rerank_req = RerankRequest(query=message, passages=passages)
+                reranked = _ranker.rerank(rerank_req)
+                top_passages = reranked[:5]
+            except Exception as e:
+                logger.exception("Error during reranking, falling back to top search results")
+                top_passages = [
+                    {
+                        "text": res["text"],
+                        "meta": {
+                            "scheme_id": res["scheme_id"],
+                            "scheme_name": res["scheme_name"],
+                            "source_url": res["source_url"],
+                        },
+                    }
+                    for res in search_results[:5]
+                ]
+        else:
             top_passages = [
                 {
-                    "text": r["text"],
+                    "text": res["text"],
                     "meta": {
-                        "scheme_id": r["scheme_id"],
-                        "scheme_name": r["scheme_name"],
-                        "source_url": r["source_url"],
+                        "scheme_id": res["scheme_id"],
+                        "scheme_name": res["scheme_name"],
+                        "source_url": res["source_url"],
                     },
                 }
-                for r in search_results[:5]
+                for res in search_results[:5]
             ]
 
-    sources = []
-
-    seen = set()
-
+    # 4. Extract unique source metadata
+    sources: list[ChatSource] = []
+    seen_scheme_ids = set()
     for passage in top_passages:
-
         meta = passage.get("meta", {})
-
-        sid = meta.get("scheme_id")
-
-        if sid and sid not in seen:
-
-            seen.add(sid)
-
+        scheme_id = meta.get("scheme_id")
+        if scheme_id and scheme_id not in seen_scheme_ids:
+            seen_scheme_ids.add(scheme_id)
             sources.append(
                 ChatSource(
-                    scheme_id=sid,
-                    scheme_name=meta.get("scheme_name") or sid,
+                    scheme_id=scheme_id,
+                    scheme_name=meta.get("scheme_name") or scheme_id,
                     source_url=meta.get("source_url") or "",
                 )
             )
 
-    answer = _generate_fallback_answer(top_passages)
-
-    api_key = settings.GEMINI_API_KEY.strip()
-
-    if api_key and top_passages:
-
+    # 5. Generate response (Gemini singleton or Fallback)
+    if _gemini_client is not None and top_passages:
         try:
-            from google import genai
-            from google.genai import types
+            from google.genai import types  # pyrefly: ignore [missing-import]
 
-            client = genai.Client(api_key=api_key)
+            # Construct grounding context
+            context_parts = []
+            for idx, p in enumerate(top_passages):
+                meta = p.get("meta", {})
+                context_parts.append(
+                    f"Source: {meta.get('scheme_name')} (ID: {meta.get('scheme_id')})\n"
+                    f"Content: {p.get('text')}\n"
+                    f"Source URL: {meta.get('source_url')}\n"
+                )
+            context_text = "\n---\n".join(context_parts)
 
-            context = "\n\n".join(
-                [
-                    f"""
-Scheme: {p["meta"].get("scheme_name")}
-ID: {p["meta"].get("scheme_id")}
-Content:
-{p["text"]}
-"""
-                    for p in top_passages
-                ]
+            system_instruction = (
+                "You are a helpful, professional AI Scholarship Advisor. "
+                "Your goal is to guide students to find relevant scholarships based on their question and the retrieved context. "
+                "Use only the provided context to answer the question. If the context does not contain enough information to answer, "
+                "politely say that you don't have that information. Do not make up facts or external links.\n\n"
+                "When referencing any scholarship scheme, you MUST link it using markdown syntax: [Scheme Name](/scheme/scheme_id) "
+                "where Scheme Name is the name of the scholarship and scheme_id is the exact scheme_id from the context metadata. "
+                "Do not invent URLs; only use the specified '/scheme/scheme_id' path format."
             )
 
-            prompt = f"""
-User State: {current_user.state}
-Category: {current_user.category}
-Education: {current_user.education_level}
-Income: {current_user.income}
+            prompt = (
+                f"User Profile details:\n"
+                f"- State: {current_user.state or 'Not specified'}\n"
+                f"- Category: {current_user.category or 'Not specified'}\n"
+                f"- Education Level: {current_user.education_level or 'Not specified'}\n"
+                f"- Family Income: {current_user.income or 'Not specified'}\n\n"
+                f"Retrieved Scholarship Information:\n"
+                f"{context_text}\n\n"
+                f"User Question: {message}\n"
+                f"Response:"
+            )
 
-Scholarship Context:
-
-{context}
-
-Question:
-
-{message}
-"""
-
-            response = client.models.generate_content(
+            response = _gemini_client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    system_instruction=(
-                        "Answer ONLY using the scholarship context."
-                    )
+                    system_instruction=system_instruction,
                 ),
             )
+            answer = response.text
+        except Exception as e:
+            logger.exception("Gemini execution failed, using fallback summary")
+            answer = _generate_fallback_answer(top_passages)
+    else:
+        answer = _generate_fallback_answer(top_passages)
 
-            if response.text:
-                answer = response.text
+    return ChatResponse(answer=answer, sources=sources)
 
-        except Exception:
-            logger.exception("Gemini failed")
 
-    return ChatResponse(
-        answer=answer,
-        sources=sources,
+def _generate_fallback_answer(top_passages: list[dict[str, Any]]) -> str:
+    if not top_passages:
+        return "I couldn't find any relevant scholarships matching your query in our database."
+
+    ans = (
+        "Hello! I am currently running in local retrieval-only mode. "
+        "However, based on your profile and query, I retrieved the following matching scholarship schemes:\n\n"
     )
-
-
-def _generate_fallback_answer(
-    passages: list[dict[str, Any]],
-) -> str:
-
-    if not passages:
-        return (
-            "I couldn't find any relevant scholarships matching your query."
-        )
-
-    text = "Here are the most relevant scholarship matches:\n\n"
-
-    for i, p in enumerate(passages, start=1):
-
+    for idx, p in enumerate(top_passages):
         meta = p.get("meta", {})
+        name = meta.get("scheme_name") or meta.get("scheme_id") or "Scholarship"
+        sid = meta.get("scheme_id") or ""
+        text = p.get("text", "")
+        # Get snippet
+        snippet = text[:200] + "..." if len(text) > 200 else text
+        ans += f"{idx + 1}. **[{name}](/scheme/{sid})**\n   *Match Excerpt:* \"{snippet}\"\n\n"
 
-        name = meta.get("scheme_name", "Scholarship")
-
-        sid = meta.get("scheme_id", "")
-
-        snippet = p["text"][:200]
-
-        text += (
-            f"{i}. **[{name}](/scheme/{sid})**\n"
-            f"{snippet}...\n\n"
-        )
-
-    return text
+    ans += "You can click on the links above to view full details and apply!"
+    return ans
